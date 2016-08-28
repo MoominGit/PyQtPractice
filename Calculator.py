@@ -57,7 +57,7 @@ if __name__ == '__main__':
     panel = QWidget()
     lcd_widget = LCDWidget()
     pushbutton_widget = PushButtonWidget()
-    #作成した液晶画面と、ボタンをメインウィンドウに上下に配置
+    #作成した液晶画面,ボタンをメインウィンドウに上下に配置
     panel_layout = QVBoxLayout()
     panel_layout.addWidget(lcd_widget)
     panel_layout.addWidget(pushbutton_widget)
