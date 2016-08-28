@@ -21,7 +21,7 @@ class LCDWidget(QWidget):
         lcd = QLCDNumber(self)
         layout = QVBoxLayout()
 
-        # ラベルとボタンを上下に配置
+        #液晶部分が自動伸長する設定
         lcd.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         layout.addWidget(lcd)
 
@@ -35,7 +35,6 @@ class PushButtonWidget(QWidget):
 
     def initUI(self):
         layout = QGridLayout()
-        # 電卓のボタン配置
         names = ['Cls', 'Bck', '', 'Close',
                  '7', '8', '9', '/',
                  '4', '5', '6', '*',
@@ -43,6 +42,7 @@ class PushButtonWidget(QWidget):
                 '0', '.', '=', '+']
 
         positions = [(i, j) for i in range(5) for j in range(4)]
+        # 電卓のボタン配置
         for position, name in zip(positions, names):
 
             if name == '':
@@ -57,6 +57,7 @@ if __name__ == '__main__':
     panel = QWidget()
     lcd_widget = LCDWidget()
     pushbutton_widget = PushButtonWidget()
+    #作成した液晶画面と、ボタンをメインウィンドウに上下に配置
     panel_layout = QVBoxLayout()
     panel_layout.addWidget(lcd_widget)
     panel_layout.addWidget(pushbutton_widget)
