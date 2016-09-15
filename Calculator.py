@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import QGridLayout
 from PyQt5.QtWidgets import QLCDNumber
 from PyQt5.QtWidgets import QLineEdit
 from PyQt5.QtWidgets import QMainWindow
+from PyQt5.QtWidgets import QMessageBox
 from PyQt5.QtWidgets import QPushButton
 from PyQt5.QtWidgets import QSizePolicy
 from PyQt5.QtWidgets import QVBoxLayout
@@ -51,17 +52,18 @@ class PushButtonWidget(QWidget):
                 '0', '.', '=', '+']
 
         positions = [(i, j) for i in range(5) for j in range(4)]
-        self.currentNum = 0.0
-        self.resultNum = 0.0
-        self.tmpNum = 0.0
-        self.minusCount = 0
-        self.pushOperatorFlg = False
-        self.plusButtonClickFlg = False
-        self.minusButtonClickFlg = False
-        self.asterliskButtonClickFlg = False
-        self.slashButtonClickFlg = False
-        self.dotButtonClickFlg = False
-        self.state = ''
+        self.state = 'START'
+        #リストにクリックした数字を格納する
+        self.numberList = [0, 0]
+        #リストの中の格納領域を指定する
+        #0 = 電卓起動時
+        #1 = 1度でも=か演算子が押された場合
+        self.inputPositon = 0
+        #最後に押した演算子
+        #=を押した際の計算に使用する
+        self.lastPushOperator = ''
+        #計算後はリストの0番目を常に表示
+        self.displayPositon = 0
         # 電卓のボタン配置
         for position, name in zip(positions, names):
 
@@ -98,131 +100,123 @@ class PushButtonWidget(QWidget):
 
     def numberButtonClicked(self):
         print('Number Button Clicked!')
+        if(self.state != 'START' and self.state != 'DOT'):
+            self.inputPositon = 1
         # シグナル送信元のウィジェット取得(押下ボタンウィジェット)
         clickedButton = self.sender()
         buttonText = clickedButton.text()
-        print ('Now Display Number' + str(self.lcdwidget.lcd.value()))
-        if(self.currentNum == 0 or self.pushOperatorFlg == True):
-            self.currentNum = int(buttonText)
-            self.lcdwidget.updateDisplay(int(buttonText))
-        elif (self.state == 'DOT'):
-            print('dot!')
-            print(int(buttonText) / 10)
-            self.currentNum = self.tmpNum + int(buttonText) / 10
-            self.lcdwidget.updateDisplay(self.currentNum)
+        print('Now Display Number' + str(self.lcdwidget.lcd.value()))
+        if(self.state == 'START'):
+            if(self.numberList[self.inputPositon] == 0):
+                self.numberList[self.inputPositon] = int(buttonText)
+            else:
+                self.numberList[self.inputPositon] = self.numberList[self.inputPositon] * 10 + int(buttonText)
         else:
-            self.currentNum = self.currentNum * 10 + (int(buttonText))
-            self.lcdwidget.updateDisplay(self.currentNum)
+            if (self.numberList[self.inputPositon] == 0):
+                self.numberList[self.inputPositon] = int(buttonText)
+            else:
+                if(self.state == 'DOT'):
+                    self.numberList[self.inputPositon] = self.numberList[self.inputPositon] + int(buttonText) / 10
+                else:
+                    self.numberList[self.inputPositon] = self.numberList[self.inputPositon] * 10 + int(buttonText)
+        self.lcdwidget.updateDisplay(self.numberList[self.inputPositon])
 
     def plusButtonClicked(self):
         clickedButton = self.sender()
-        buttonText = clickedButton.text()
-        self.tmpNum += self.currentNum
-        #同じ演算子ボタンを2回以上押下した場合
-        if(self.state == 'PLUS'):
-            self.resultNum += self.tmpNum
-            self.lcdwidget.updateDisplay(self.resultNum)
-            self.tmpNum = 0
-        self.setState(buttonText)
-        self.pushOperatorFlg = True
+        if(self.state != 'PLUS'):
+            self.state = 'PLUS'
+            self.lastPushOperator = clickedButton.text()
+        else:
+            self.numberList.append(self.calc(self.numberList.pop(0), self.lastPushOperator, self.numberList.pop(0)))
+            self.numberList.append(0)
+            self.lcdwidget.updateDisplay(self.numberList[self.displayPositon])
 
     def minusButtonClicked(self):
         clickedButton = self.sender()
-        buttonText = clickedButton.text()
-        if (self.state != 'MINUS'):
-            self.tmpNum = self.currentNum
-        if (self.state == 'MINUS'):
-            if(self.minusCount == 0):
-                self.resultNum = self.tmpNum - self.currentNum
-                self.minusCount += 1
-            else:
-                self.resultNum -= self.currentNum
-            self.lcdwidget.updateDisplay(self.resultNum)
-        self.setState(buttonText)
-        self.pushOperatorFlg = True
+        if(self.state != 'MINUS'):
+            self.state = 'MINUS'
+            self.lastPushOperator = clickedButton.text()
+        else:
+            self.numberList.append(self.calc(self.numberList.pop(0), self.lastPushOperator, self.numberList.pop(0)))
+            self.numberList.append(0)
+            self.lcdwidget.updateDisplay(self.numberList[self.displayPositon])
 
     def slashButtonClicked(self):
         clickedButton = self.sender()
-        buttonText = clickedButton.text()
-        self.tmpNum = self.currentNum
-        if (self.state == 'DIVIDE'):
-            if self.currentNum != 0:
-                if(self.resultNum == 0):
-                    self.resultNum = self.currentNum / self.tmpNum
-                    self.lcdwidget.updateDisplay(self.resultNum)
-                else:
-                    self.resultNum /= self.currentNum
-                    self.lcdwidget.updateDisplay(self.resultNum)
-            else:
-                self.init(True)
-                return
-            self.tmpNum = 0
-        self.setState(buttonText)
-        self.pushOperatorFlg = True
+        if(self.state != 'DIVIDE'):
+            self.state = 'DIVIDE'
+            self.lastPushOperator = clickedButton.text()
+        else:
+            self.numberList.append(self.calc(self.numberList.pop(0), self.lastPushOperator, self.numberList.pop(0)))
+            self.numberList.append(0)
+            self.lcdwidget.updateDisplay(self.numberList[self.displayPositon])
 
     def asterliskButtonClicked(self):
         clickedButton = self.sender()
-        buttonText = clickedButton.text()
-        self.tmpNum = self.currentNum
-        # 同じ演算子ボタンを2回以上押下した場合
-        if self.state == 'MULTIPLE':
-            if(self.resultNum == 0):
-                self.resultNum = self.currentNum * self.tmpNum
-            else:
-                self.resultNum *= self.currentNum
-            self.lcdwidget.updateDisplay(self.resultNum)
-            self.tmpNum = 0
-        self.setState(buttonText)
-        self.pushOperatorFlg = True
+        if(self.state != 'MULTIPLE'):
+            self.state = 'MULTIPLE'
+            self.lastPushOperator = clickedButton.text()
+        else:
+            self.numberList.append(self.calc(self.numberList.pop(0), self.lastPushOperator, self.numberList.pop(0)))
+            self.numberList.append(0)
+            self.lcdwidget.updateDisplay(self.numberList[self.displayPositon])
 
     def equalButtonClicked(self):
         clickedButton = self.sender()
-        buttonText = clickedButton.text()
-        if (self.state == 'PLUS'):
-            self.resultNum = self.tmpNum + self.currentNum
-        elif (self.state == 'MINUS'):
-            self.resultNum = self.tmpNum - self.currentNum
-        elif (self.state == 'MULTIPLE'):
-            self.resultNum = self.tmpNum * self.currentNum
-        elif (self.state == 'DIVIDE'):
-            if(self.currentNum != 0):
-                self.resultNum = self.tmpNum / self.currentNum
-            else:
-                self.init(True)
-                return
-        self.lcdwidget.updateDisplay(self.resultNum)
-        self.currentNum = 0
-        self.pushOperatorFlg = False
+        self.numberList.append(self.calc(self.numberList.pop(0), self.lastPushOperator, self.numberList.pop(0)))
+        self.numberList.append(0)
+        print('Ret Number : ' + str(self.numberList[self.displayPositon]))
+        self.lastPushOperator = clickedButton.text()
+        self.lcdwidget.updateDisplay(self.numberList[self.displayPositon])
+        self.state = 'EQUAL'
 
     def dotButtonClicked(self):
         clickedButton = self.sender()
         buttonText = clickedButton.text()
-        self.tmpNum = self.currentNum
         self.setState(buttonText)
 
     def clsButtonClicked(self):
-        clickedButton = self.sender()
-        buttonText = clickedButton.text()
         self.init()
 
     def bckButtonClicked(self):
-        clickedButton = self.sender()
-        buttonText = clickedButton.text()
+        if(self.state == 'EQUAL'):
+            self.numberList[self.displayPositon] = int(self.numberList[self.displayPositon] / 10)
+            self.lcdwidget.updateDisplay(self.numberList[self.displayPositon])
+        else:
+            self.numberList[self.inputPositon] = int(self.numberList[self.inputPositon] / 10)
+            self.lcdwidget.updateDisplay(self.numberList[self.inputPositon])
+
 
     def closeButtonClicked(self):
-        clickedButton = self.sender()
-        buttonText = clickedButton.text()
+        sys.exit()
 
-    def init(self, Error=False):
-        self.tmpNum = 0
-        self.resultNum = 0
-        self.currentNum = 0
-        self.state = ''
-        if(Error == False):
+    def calc(self, leftNumber, operator, rightNumber):
+        if(operator == '+'):
+            return leftNumber + rightNumber
+        if(operator == '-'):
+            return leftNumber - rightNumber
+        if(operator == '*'):
+            return leftNumber * rightNumber
+        if(operator == '/'):
+            try:
+                return leftNumber / rightNumber
+            except ZeroDivisionError:
+                print('ZeroDivisionError')
+                self.init('ERROR')
+
+    def init(self, STATUS='ALLCLEAR'):
+        self.lastPushOperator = ''
+        self.state = 'START'
+        self.inputPositon = 0
+        for i in range(len(self.numberList)):
+            self.numberList[i] = 0
+        if(STATUS == 'ERROR'):
+            #ここ警告を出す等したい(何故か出ない)
+            sys.exit()
+        elif(STATUS == 'ALLCLEAR'):
             self.lcdwidget.updateDisplay(0)
-        else:
-            print('Zero Divide Error!!!!!!')
-            self.lcdwidget.updateDisplay('ERROR')
+
+
 
 
     def setState(self, buttonText):
@@ -241,6 +235,9 @@ class PushButtonWidget(QWidget):
        elif(buttonText == '.'):
            print('setFlg!' + buttonText)
            self.state = 'DOT'
+       elif(buttonText == '='):
+           print('setFlg!' + buttonText)
+           self.state = 'EQUAL'
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
